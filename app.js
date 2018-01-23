@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 var xhr = new XMLHttpRequest(); // xhr을 xmlhttprequest모듈 사용하는거라고 정의를 해줘야함
+var xhr2 = new XMLHttpRequest();
 
 //서비스할 포트번호 설정
 const port = 4000;
@@ -46,6 +47,20 @@ xhr.open("GET", urlStr, true);
 			//4. 지도에 뿌린다?
 
 			//...너무많네
+		}
+	};
+
+//돌발정보 받아오기 : 그냥 버스정류장 검색할때 쓴 코드에서 url만 바꿔서 해봄
+//서울시열린데이터광장 돌발정보 API : http://data.seoul.go.kr/dataList/datasetView.do?infId=OA-13315&srvType=A&serviceKind=1&currentPageNo=1
+var accUrl = "http://openapi.seoul.go.kr:8088"
+accUrl += "/" + "*****API_KEY*****" //data.seoul.go.kr 앱키
+accUrl += "/xml/AccInfo/1/5" //AccInfo는 API이름, 1/5는 페이지 시작-끝 번호
+
+xhr2.open("GET", accUrl, true);
+	xhr2.send();
+	xhr2.onreadystatechange = function() {
+		if (xhr2.readyState == 4 && xhr2.status == 200) { // 응답 성공시
+			console.log( xhr2.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
 		}
 	};
 
