@@ -18,6 +18,7 @@
     <script type='text/javascript' src='config.js'></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIrLAR1jtHIIiXCn5ZE060HZOHzK3gTnw&callback=initMap" async defer></script>
     <script>
+
         //from 구글맵 api 샘플코드 : https://developers.google.com/maps/documentation/javascript/adding-a-google-map#3_api
         //위의 src에 앱키 포함되어 있고, IP제한설정에 추가해 두었으니 그대로 쓰셔도 됩니다
         function initMap() {
@@ -25,6 +26,15 @@
           var map = new google.maps.Map(document.getElementById('map'), {
             zoom: 15,
             center: center
+          });
+
+          //marker생성
+          var marker;
+          marker = new google.maps.Marker({
+            map: map,
+            draggable: true,
+            animation: google.maps.Animation.DROP,
+            position: {lat: 37.652466, lng: 126.787173}
           });
         }
     </script>
