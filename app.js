@@ -6,6 +6,7 @@ const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 var xhr = new XMLHttpRequest(); // xhr을 xmlhttprequest모듈 사용하는거라고 정의를 해줘야함
 var xhr2 = new XMLHttpRequest();
 var xhr3 = new XMLHttpRequest();
+var xhr4 = new XMLHttpRequest();
 
 
 //서비스할 포트번호 설정
@@ -105,42 +106,81 @@ xhr2.onreadystatechange = function() {
 				//위의 url에 아래 요소들 붙여서 API 조회할 url을 만든다
 				urlStr += "&x=" + vigilX;
 				urlStr += "&y=" + vigilY;
-				urlStr += "&radius=" + 300; //집회위치 반경 몇m나 조회? (300으로 셋팅)
+				urlStr += "&radius=" + 100; //집회위치 반경 몇m나 조회? (100으로 셋팅)
 				urlStr += "&stationClass=1" //1번이 버스정류장, 2번이 지하철역...
 				urlStr += "&apiKey=" + "GnSmCmPIkjKL9/FV99w4kZkJMcq1Jkc01VwirnkkSnY"
 				//odsay 앱키 (IP별로 1개씩 따로 발급되더라ㅠ : 그대로 하시면 API 조회할 때 오류날 듯, 따로발급하셔야...)
 
 				//아래는 https://lab.odsay.com/guide/guide?platform=web 오디세이 개발가이드 샘플코드
 				xhr.open("GET", urlStr, true);
-					xhr.send();
-					xhr.onreadystatechange = function() {
-						if (xhr.readyState == 4 && xhr.status == 200) { // 응답 성공시
-							console.log( xhr.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
+				xhr.send();
+				xhr.onreadystatechange = function() {
+					if (xhr.readyState == 4 && xhr.status == 200) { // 응답 성공시
+						console.log( xhr.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
 
-							/* 응답 예시 :
-							{"result":{"count":18,"station":[{"nonstopStation":0,"stationClass":1,"stationName":"광화문한국통신.KT","stationID":196616,"x":126.977356,"y":37.571873,"arsID":"","ebid":""}]}}
-							*/
+						/* 응답 예시 :
+						{"result":{"count":18,"station":[{"nonstopStation":0,"stationClass":1,"stationName":"광화문한국통신.KT","stationID":196616,"x":126.977356,"y":37.571873,"arsID":"","ebid":""}]}}
+						*/
 
-							//파싱해서 nearstop이라는 변수에 우선 저장해둔다
-							var nearstop = JSON.parse(xhr.responseText);
+						//파싱해서 nearstop이라는 변수에 우선 저장해둔다
+						var nearstop = JSON.parse(xhr.responseText);
 
-							//여기에 이제
-							//1. 받은 데이터에서 버스정류장 코드만 따서
-							//2. 그 버스정류장 코드를 포함해서 무슨버스지나가나 API 조회를 하고
-							//3. 응답받은 버스노선들 적당히 추리고 데이터 가공해서
-							//4. 지도에 뿌린다?
+						//정류장 코드만 따본다 우선 가장 첫 번째 정류장만 해보자
+						var nearstopcode = nearstop.result.station[0].stationID;
 
-							//...너무많네
-						}
-					};//여기까지 집회반경버스정류장 검색
+						//버스정류장 코드로 그 정류장 지나가는 버스 노선 검색하기 (오딧세이 API)
+						//https://lab.odsay.com/guide/releaseReference#busStationInfo 참조
+						var busUrl = "https://api.odsay.com/v1/api/busStationInfo"
+						//위의 URL에 아래 요소들 붙여서 API 조회할 URL 만든다.
+						busUrl += "?lang=0";
+						busUrl += "&stationID=" + nearstopcode;
+						busUrl += "&apiKey=" + "GnSmCmPIkjKL9/FV99w4kZkJMcq1Jkc01VwirnkkSnY"
+
+						xhr4.open("GET", busUrl, true);
+						xhr4.send();
+						xhr4.onreadystatechange = function() {
+							if (xhr4.readyState == 4 && xhr4.status == 200) { // 응답 성공시
+								console.log( xhr4.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
+
+								/* 응답 예시 (지나가는 버스들의 모든 정보들이 다튀어나와서 매우 길다...) :
+								{"result":{"stationName":"세브란스병원앞","stationID":103744,"x":126.93827945025708,"y":37.56000206509544,"localStationID":"112000014","arsID":"13-014",
+								"do":"서울특별시","gu":"서대문구","dong":"신촌동","lane":[{"busNo":"710","type":11,"busID":895,"busStartPoint":"상암차고지","busEndPoint":"수유역.강북구청",
+								"busFirstTime":"03:50","busLastTime":"22:40","busInterval":"8","busCityCode":1000,"busCityName":"서울","busLocalBlID":"100100110"},
+								{"busNo":"272","type":11,"busID":990,"busStartPoint":"면목동","busEndPoint":"남가좌동","busFirstTime":"04:15","busLastTime":"22:30","busInterval":"4",
+								"busCityCode":1000,"busCityName":"서울","busLocalBlID":"100100048"}
+								*/
+
+								//vigilBuses라는 변수에 파싱에서 우선 저장해둠
+								var vigilBuses = JSON.parse(xhr4.responseText);
+
+								//여기에 이제
+								//1. 받은 데이터에서 버스정류장 코드만 따서 : 했음
+								//2. 그 버스정류장 코드를 포함해서 무슨버스지나가나 API 조회를 하고 : 했음
+								//3. 응답받은 버스노선들 적당히 추리고 데이터 가공해서 : 넘나 어려운 것
+								//4. 지도에 뿌린다? : ejs 엔진 필요 (노드에서 HTML페이지로 인자 넘기기 위해 동적 HTML 사용해야함)
+
+								//...너무많네
+
+							}
+							else{
+								console.log( "Odsay busStationInfo API Err : " + xhr4.status );
+							}
+						};//여기까지 버스정류장코드로 지나가는 버스 검색
+					}
+					else {
+						console.log( "Odsay busstop search Err : " + xhr.status );
+					}
+				};//여기까지 집회반경버스정류장 검색
 			}
 			else {
-				console.log( xhr3.status );
+				console.log( "Naver API CSR change Err : " + xhr3.status );
 			}
-		};
-		//여까지 좌표변환
+		};//여까지 좌표변환
 	}
-};//여기까지 돌발정보조히
+	else {
+		console.log( "Seoul City ACCinfo API Err : " + xhr2.status );
+	}
+};//여기까지 돌발정보조회
 
 
 /*
@@ -149,6 +189,7 @@ xhr2.onreadystatechange = function() {
 돌발정보조회(서울시){
 	성공시: 받은좌표 변환(카카오){
 		성공시: 변환된 좌표로 주변버스정류장 검색(오디세이){
+			성공시: 검색한 버스정류장코드로 지나가는 버스 조회(오디세이)
 	}
 }
 */
