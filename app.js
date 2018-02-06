@@ -3,11 +3,17 @@ const http = require('http');
 const fs = require('fs');
 const parseString = require('xml2js').parseString;
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
+const express = require('express');
+
 var xhr = new XMLHttpRequest(); // xhr을 xmlhttprequest모듈 사용하는거라고 정의를 해줘야함
 var xhr2 = new XMLHttpRequest();
 var xhr3 = new XMLHttpRequest();
 var xhr4 = new XMLHttpRequest();
 
+var app = express();
+app.set('views');
+app.set('view engine', 'ejs');
+//express ejs엔진 설정
 
 //서비스할 포트번호 설정
 const port = 4000;
@@ -15,6 +21,8 @@ const port = 4000;
 //웹에 접근 > 집회정보 검색 > 집회위치 추출해 index.html에 넘겨주기 > index.html내의 구글맵에 마커로 표현?
 //or 주기적으로 집회정보 검색해서 지도 생성에 필요한 인자 모두 저장 및 업데이트 해둠 > 웹에 접근시 지도 표현?
 
+
+/*
 //포트에 접근시 index.html 반환
 http.createServer(function(req, res){
 	fs.readFile('index.html', function(err, data){
@@ -24,8 +32,11 @@ http.createServer(function(req, res){
 }).listen(port, function(){
 	console.log("server is listening on", port);
 })
+*/
+//기본 내장 http 모듈 대신 express 사용 (코드 아래부분에 넣음)
 
-//집회 위치 받아서 저장할 x, y 좌표(WGS84) : 추후 vigilX_tm, vigilY_tm을 변환할 필요
+
+//집회 위치 받아서 저장할 x, y 좌표(WGS84) : 추후 vigilX_tm, vigilY_tm을 변환해서 여기에 저장
 var vigilX = 126.976942;
 var vigilY = 37.571005; //초깃값 : 세종대로사거리
 
@@ -68,8 +79,10 @@ xhr2.onreadystatechange = function() {
 		//일단 첫 번째 돌발정보만 처리해보자
 		var accn = accJS.AccInfo.list_total_count;
 		console.log("ACC Count : " + accn); //돌발정보 갯수
+
 		vigilX_tm = accJS.AccInfo.row[0].grs80tm_x;
 		vigilY_tm = accJS.AccInfo.row[0].grs80tm_y;
+		vigilI = accJS.AccInfo.row[0].acc_info;
 		//집회가 일어난 장소의 좌표를 저장함
 		//얘는 grs80타원체 TM좌표계 (아마도 중부원점) 사용
 
@@ -95,7 +108,7 @@ xhr2.onreadystatechange = function() {
 				*/
 
 				var vigilXY = JSON.parse(xhr3.responseText);
-				console.log(vigilXY);
+				//console.log(vigilXY);
 				vigilX = vigilXY.documents[0].x;
 				vigilY = vigilXY.documents[0].y;
 				console.log( "CSR Change OK (FROM KAKAO API) : ", vigilX, ", ", vigilY);
@@ -106,7 +119,7 @@ xhr2.onreadystatechange = function() {
 				//위의 url에 아래 요소들 붙여서 API 조회할 url을 만든다
 				urlStr += "&x=" + vigilX;
 				urlStr += "&y=" + vigilY;
-				urlStr += "&radius=" + 100; //집회위치 반경 몇m나 조회? (100으로 셋팅)
+				urlStr += "&radius=" + 200; //집회위치 반경 몇m나 조회? (200으로 셋팅)
 				urlStr += "&stationClass=1" //1번이 버스정류장, 2번이 지하철역...
 				urlStr += "&apiKey=" + "GnSmCmPIkjKL9/FV99w4kZkJMcq1Jkc01VwirnkkSnY"
 				//odsay 앱키 (IP별로 1개씩 따로 발급되더라ㅠ : 그대로 하시면 API 조회할 때 오류날 듯, 따로발급하셔야...)
@@ -116,7 +129,7 @@ xhr2.onreadystatechange = function() {
 				xhr.send();
 				xhr.onreadystatechange = function() {
 					if (xhr.readyState == 4 && xhr.status == 200) { // 응답 성공시
-						console.log( xhr.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
+						//console.log( xhr.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
 
 						/* 응답 예시 :
 						{"result":{"count":18,"station":[{"nonstopStation":0,"stationClass":1,"stationName":"광화문한국통신.KT","stationID":196616,"x":126.977356,"y":37.571873,"arsID":"","ebid":""}]}}
@@ -124,6 +137,7 @@ xhr2.onreadystatechange = function() {
 
 						//파싱해서 nearstop이라는 변수에 우선 저장해둔다
 						var nearstop = JSON.parse(xhr.responseText);
+						console.log('nearbusstops : ' + nearstop.result.count);
 
 						//정류장 코드만 따본다 우선 가장 첫 번째 정류장만 해보자
 						var nearstopcode = nearstop.result.station[0].stationID;
@@ -140,7 +154,7 @@ xhr2.onreadystatechange = function() {
 						xhr4.send();
 						xhr4.onreadystatechange = function() {
 							if (xhr4.readyState == 4 && xhr4.status == 200) { // 응답 성공시
-								console.log( xhr4.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
+								//console.log( xhr4.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
 
 								/* 응답 예시 (지나가는 버스들의 모든 정보들이 다튀어나와서 매우 길다...) :
 								{"result":{"stationName":"세브란스병원앞","stationID":103744,"x":126.93827945025708,"y":37.56000206509544,"localStationID":"112000014","arsID":"13-014",
@@ -182,7 +196,6 @@ xhr2.onreadystatechange = function() {
 	}
 };//여기까지 돌발정보조회
 
-
 /*
 전체적으로 구조가 이렇습니다.
 
@@ -196,3 +209,22 @@ xhr2.onreadystatechange = function() {
 
 //xhr이 뭐 어찌 돌아가는지는 잘 모르겠지만 돌리면 아무튼 TEST폴더에 올려놓은 사진처럼 잘 됨...ㅋㅋ
 //index.html 보려면 app.js 실행중인 상태에서 브라우저에 localhost:4000 입력
+
+/*
+//동적 HTML 구현을 위한 express 프레임워크로 전환해봄
+app.get('/', function (req, res) {
+	fs.readFile('index.html', function(err, data){
+		res.writeHead(200, { 'Content-Type': 'text/html' });
+		res.end(data);
+	});
+});//루트디렉터리에 접근하면 index.html 반환 : 이건 정적 HTML을 express로 다루는 방법입니다.
+*/
+
+
+app.get('/', function(req, res){
+  res.render("index", { vigilX : vigilX, vigilY : vigilY, vigilI : vigilI })
+});//루트디렉터리에 접근하면 index.ejs라는 파일을 찾아 뒤의 파라미터를 찾아 html로 렌더링해서 반환함 (동적)
+
+app.listen(port, function () {
+  console.log('Example app listening on port' + port);
+});//4000번 포트 리스닝
