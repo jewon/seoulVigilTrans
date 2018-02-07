@@ -13,7 +13,7 @@ var xhr4 = new XMLHttpRequest();
 var app = express();
 app.set('views');
 app.set('view engine', 'ejs');
-//express ejs엔진 설정
+//express엔진 템플릿을 ejs로 설정
 
 //서비스할 포트번호 설정
 const port = 4000;
@@ -48,12 +48,12 @@ var vigilY_tm;
 //서울시열린데이터광장 돌발정보 API : http://data.seoul.go.kr/dataList/datasetView.do?infId=OA-13315&srvType=A&serviceKind=1&currentPageNo=1
 var accUrl = "http://openapi.seoul.go.kr:8088"
 accUrl += "/" + "6f5548484b6a657734364372496f46" //data.seoul.go.kr 앱키
-accUrl += "/xml/AccInfo/1/5" //AccInfo는 API이름, 1/5는 페이지 시작-끝 번호, API가 json미지원(xml만 가능)
+accUrl += "/xml/AccInfo/1/100" //AccInfo는 API이름, 1부터 100번째 돌발정보까지 가져옴, API가 json미지원(xml만 가능)
 
 xhr2.open("GET", accUrl, true);
 xhr2.send();
 xhr2.onreadystatechange = function() {
-	if (xhr2.readyState == 4 && xhr2.status == 200) { // 응답 성공시
+	if (xhr2.readyState == 4 && xhr2.status == 200) { // 응답 성공시 (xhr.readyState : https://developer.mozilla.org/ko/docs/Web/API/XMLHttpRequest/readyState 참조)
 
 		//console.log( xhr2.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
 
@@ -65,6 +65,16 @@ xhr2.onreadystatechange = function() {
 			<link_id>1130017700</link_id><grs80tm_x>194423.5962627257</grs80tm_x><grs80tm_y>450897.9580961145</grs80tm_y>
 			<acc_info>- 버스, 16인 승 이상 승합차, 긴급차량, 자전거만 통행 허용&#13;- 조업차량 ( 10시~11시,15시~16시 ),
 			택시 ( 00시~04시 )&#13;- 주말'차 없는 거리’운영 : 매주 토요일 14시~일요일 22시&#13;- 사전 신고된 차량만 제한적 허용 &#13;</acc_info></row></AccInfo>
+			*/
+
+			/*
+			위의 응답결과에서 집회정보만 추려야하는데 acc_type이 아마 돌발정보 유형인 듯 한데...
+			이 코드가 뭘 의미하는지에 대한 정보가 없어서 찾아보니 이것도 API로 받아와야 하더라...
+			http://openapi.seoul.go.kr:8088/(서울열린데이터광장 API키)/xml/AccMainCode/1/100/ 로 GET해보면
+
+			<?xml version="1.0" encoding="UTF-8" standalone="yes"?><AccMainCode><list_total_count>12</list_total_count><RESULT><CODE>INFO-000</CODE><MESSAGE>정상 처리되었습니다</MESSAGE></RESULT><row><acc_type>A01</acc_type><acc_type_nm>교통사고</acc_type_nm></row><row><acc_type>A02</acc_type><acc_type_nm>차량고장</acc_type_nm></row><row><acc_type>A03</acc_type><acc_type_nm>보행사고</acc_type_nm></row><row><acc_type>A04</acc_type><acc_type_nm>공사</acc_type_nm></row><row><acc_type>A05</acc_type><acc_type_nm>낙하물</acc_type_nm></row><row><acc_type>A06</acc_type><acc_type_nm>버스사고</acc_type_nm></row><row><acc_type>A07</acc_type><acc_type_nm>지하철사고</acc_type_nm></row><row><acc_type>A08</acc_type><acc_type_nm>화재</acc_type_nm></row><row><acc_type>A09</acc_type><acc_type_nm>기상/재난</acc_type_nm></row><row><acc_type>A10</acc_type><acc_type_nm>집회및행사</acc_type_nm></row><row><acc_type>A11</acc_type><acc_type_nm>기타</acc_type_nm></row><row><acc_type>A12</acc_type><acc_type_nm>제보</acc_type_nm></row></AccMainCode>
+
+			acc_type이 A10이면 '집회및행사' 라고한다. 이게 추후에 계속 변동하는지는 두고 봐야할듯
 			*/
 
 
@@ -85,6 +95,21 @@ xhr2.onreadystatechange = function() {
 		vigilI = accJS.AccInfo.row[0].acc_info;
 		//집회가 일어난 장소의 좌표를 저장함
 		//얘는 grs80타원체 TM좌표계 (아마도 중부원점) 사용
+
+
+		//돌발정보 중 집회및행사에 대한 것만 추려보자
+		var vigilN = 0; //집회 갯수를 저장할 변수 (0이면 이후 동작을 하지 않게 설정)
+
+		for ( var i = 0; i < accJS.AccInfo.row.length; i++) {
+			if (accJS.AccInfo.row[i].acc_type == 'A10') {
+				console.log("Vigil Find!");
+				vigilN++;
+			}
+			else {
+				console.log("ACC " + i + "is Not Vigil ACC : " + accJS.AccInfo.row[i].acc_type);
+			}
+		}
+
 
 		//구글맵이랑 뒤에서 쓰는 오디세이 API는 또 WGS84좌표값만 받음.
 		//즉, 돌발정보API에서 얻은 좌표를 변환해줘야 함
@@ -138,61 +163,63 @@ xhr2.onreadystatechange = function() {
 						//파싱해서 nearstop이라는 변수에 우선 저장해둔다
 						var nearstop = JSON.parse(xhr.responseText);
 						console.log('nearbusstops : ' + nearstop.result.count);
+						if (nearstop.result.count > 0) { //주변에 버정이 있는경우에만 계속 진행
 
-						//정류장 코드만 따본다 우선 가장 첫 번째 정류장만 해보자
-						var nearstopcode = nearstop.result.station[0].stationID;
+							//정류장 코드만 따본다 우선 가장 첫 번째 정류장만 해보자
+							var nearstopcode = nearstop.result.station[0].stationID;
 
-						//버스정류장 코드로 그 정류장 지나가는 버스 노선 검색하기 (오딧세이 API)
-						//https://lab.odsay.com/guide/releaseReference#busStationInfo 참조
-						var busUrl = "https://api.odsay.com/v1/api/busStationInfo"
-						//위의 URL에 아래 요소들 붙여서 API 조회할 URL 만든다.
-						busUrl += "?lang=0";
-						busUrl += "&stationID=" + nearstopcode;
-						busUrl += "&apiKey=" + "GnSmCmPIkjKL9/FV99w4kZkJMcq1Jkc01VwirnkkSnY"
+							//버스정류장 코드로 그 정류장 지나가는 버스 노선 검색하기 (오딧세이 API)
+							//https://lab.odsay.com/guide/releaseReference#busStationInfo 참조
+							var busUrl = "https://api.odsay.com/v1/api/busStationInfo"
+							//위의 URL에 아래 요소들 붙여서 API 조회할 URL 만든다.
+							busUrl += "?lang=0";
+							busUrl += "&stationID=" + nearstopcode;
+							busUrl += "&apiKey=" + "GnSmCmPIkjKL9/FV99w4kZkJMcq1Jkc01VwirnkkSnY"
 
-						xhr4.open("GET", busUrl, true);
-						xhr4.send();
-						xhr4.onreadystatechange = function() {
-							if (xhr4.readyState == 4 && xhr4.status == 200) { // 응답 성공시
-								//console.log( xhr4.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
+							xhr4.open("GET", busUrl, true);
+							xhr4.send();
+							xhr4.onreadystatechange = function() {
+								if (xhr4.readyState == 4 && xhr4.status == 200) { // 응답 성공시
+									//console.log( xhr4.responseText ); // <- xhr.responseText : 파싱안한 날것의 XML데이터를 콘솔에 찍어주는듯
 
-								/* 응답 예시 (지나가는 버스들의 모든 정보들이 다튀어나와서 매우 길다...) :
-								{"result":{"stationName":"세브란스병원앞","stationID":103744,"x":126.93827945025708,"y":37.56000206509544,"localStationID":"112000014","arsID":"13-014",
-								"do":"서울특별시","gu":"서대문구","dong":"신촌동","lane":[{"busNo":"710","type":11,"busID":895,"busStartPoint":"상암차고지","busEndPoint":"수유역.강북구청",
-								"busFirstTime":"03:50","busLastTime":"22:40","busInterval":"8","busCityCode":1000,"busCityName":"서울","busLocalBlID":"100100110"},
-								{"busNo":"272","type":11,"busID":990,"busStartPoint":"면목동","busEndPoint":"남가좌동","busFirstTime":"04:15","busLastTime":"22:30","busInterval":"4",
-								"busCityCode":1000,"busCityName":"서울","busLocalBlID":"100100048"}
-								*/
+									/* 응답 예시 (지나가는 버스들의 모든 정보들이 다튀어나와서 매우 길다...) :
+									{"result":{"stationName":"세브란스병원앞","stationID":103744,"x":126.93827945025708,"y":37.56000206509544,"localStationID":"112000014","arsID":"13-014",
+									"do":"서울특별시","gu":"서대문구","dong":"신촌동","lane":[{"busNo":"710","type":11,"busID":895,"busStartPoint":"상암차고지","busEndPoint":"수유역.강북구청",
+									"busFirstTime":"03:50","busLastTime":"22:40","busInterval":"8","busCityCode":1000,"busCityName":"서울","busLocalBlID":"100100110"},
+									{"busNo":"272","type":11,"busID":990,"busStartPoint":"면목동","busEndPoint":"남가좌동","busFirstTime":"04:15","busLastTime":"22:30","busInterval":"4",
+									"busCityCode":1000,"busCityName":"서울","busLocalBlID":"100100048"}
+									*/
 
-								//vigilBuses라는 변수에 파싱에서 우선 저장해둠
-								var vigilBuses = JSON.parse(xhr4.responseText);
+									//vigilBuses라는 변수에 파싱에서 우선 저장해둠
+									var vigilBuses = JSON.parse(xhr4.responseText);
 
-								//여기에 이제
-								//1. 받은 데이터에서 버스정류장 코드만 따서 : 했음
-								//2. 그 버스정류장 코드를 포함해서 무슨버스지나가나 API 조회를 하고 : 했음
-								//3. 응답받은 버스노선들 적당히 추리고 데이터 가공해서 : 넘나 어려운 것
-								//4. 지도에 뿌린다? : ejs 엔진 필요 (노드에서 HTML페이지로 인자 넘기기 위해 동적 HTML 사용해야함)
+									//여기에 이제
+									//1. 받은 데이터에서 버스정류장 코드만 따서 : 했음
+									//2. 그 버스정류장 코드를 포함해서 무슨버스지나가나 API 조회를 하고 : 했음
+									//3. 응답받은 버스노선들 적당히 추리고 데이터 가공해서 : 넘나 어려운 것
+									//4. 지도에 뿌린다? : ejs 엔진 필요 (노드에서 HTML페이지로 인자 넘기기 위해 동적 HTML 사용해야함)
 
-								//...너무많네
+									//...너무많네
 
-							}
-							else{
-								console.log( "Odsay busStationInfo API Err : " + xhr4.status );
-							}
-						};//여기까지 버스정류장코드로 지나가는 버스 검색
+								}
+								else{
+									console.log( "Odsay busStationInfo API Err : " + xhr4.status + "   readystate : " + xhr4.readyState );
+								}
+							};//여기까지 버스정류장코드로 지나가는 버스 검색
+						}//(주변 버스장이 있을 경우에만 if문)
 					}
 					else {
-						console.log( "Odsay busstop search Err : " + xhr.status );
+						console.log( "Odsay busstop search Err : " + xhr.status + "   readystate : " + xhr.readyState );
 					}
 				};//여기까지 집회반경버스정류장 검색
 			}
 			else {
-				console.log( "Naver API CSR change Err : " + xhr3.status );
+				console.log( "Naver API CSR change Err : " + xhr3.status + "   readystate : " + xhr3.readyState );
 			}
 		};//여까지 좌표변환
 	}
 	else {
-		console.log( "Seoul City ACCinfo API Err : " + xhr2.status );
+		console.log( "Seoul City ACCinfo API Err : " + xhr2.status + "   readystate : " + xhr2.readyState );
 	}
 };//여기까지 돌발정보조회
 
@@ -223,8 +250,8 @@ app.get('/', function (req, res) {
 
 app.get('/', function(req, res){
   res.render("index", { vigilX : vigilX, vigilY : vigilY, vigilI : vigilI })
-});//루트디렉터리에 접근하면 index.ejs라는 파일을 찾아 뒤의 파라미터를 찾아 html로 렌더링해서 반환함 (동적)
+});//루트디렉터리에 접근하면 index.ejs라는 파일을 찾아 뒤의 파라미터를 찾아 html로 렌더링해서 반환함 (동적) : 기본적으로 views 폴더 안의 파일을 찾음
 
 app.listen(port, function () {
-  console.log('Example app listening on port' + port);
+  console.log('listening on port' + port);
 });//4000번 포트 리스닝
