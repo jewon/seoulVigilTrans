@@ -44,6 +44,9 @@ var vigilY = 37.571005; //초깃값 : 세종대로사거리
 var vigilX_tm;
 var vigilY_tm;
 
+//집회에 영향받는 버스들 목록 넘겨줄 스트링
+var vigilBusNumbersString = "";
+
 //돌발정보 받아오기 : 그냥 버스정류장 검색할때 쓴 코드에서 url만 바꿔서 해봄
 //서울시열린데이터광장 돌발정보 API : http://data.seoul.go.kr/dataList/datasetView.do?infId=OA-13315&srvType=A&serviceKind=1&currentPageNo=1
 var accUrl = "http://openapi.seoul.go.kr:8088"
@@ -99,14 +102,20 @@ xhr2.onreadystatechange = function() {
 
 		//돌발정보 중 집회및행사에 대한 것만 추려보자
 		var vigilN = 0; //집회 갯수를 저장할 변수 (0이면 이후 동작을 하지 않게 설정)
+		var nonvigilN = 0;
+		var vigilObj = { vigil : [], nonvigil : [] };
+		//집회와 아닌 것 구분하는 오브젝트(집회가 하도 없어서 둘다 담음, 추후 집회만 담도록 변경)
 
 		for ( var i = 0; i < accJS.AccInfo.row.length; i++) {
 			if (accJS.AccInfo.row[i].acc_type == 'A10') {
-				console.log("Vigil Find!");
+				console.log("ACC " + i + "is Vigil ACC! : " + accJS.AccInfo.row[i].acc_info);
+				vigilObj.vigil[vigilN] = accJS.AccInfo.row[i];
 				vigilN++;
 			}
 			else {
 				console.log("ACC " + i + "is Not Vigil ACC : " + accJS.AccInfo.row[i].acc_type);
+				vigilObj.nonvigil[nonvigilN] = accJS.AccInfo.row[i];
+				nonvigilN++;
 			}
 		}
 
@@ -192,6 +201,11 @@ xhr2.onreadystatechange = function() {
 
 									//vigilBuses라는 변수에 파싱에서 우선 저장해둠
 									var vigilBuses = JSON.parse(xhr4.responseText);
+									for ( var i = 0; i < vigilBuses.result.lane.length; i++) {
+										vigilBusNumbersString += vigilBuses.result.lane[i].busNo += " ";
+									}
+
+									console.log("Acc Affected Buses : " + vigilBusNumbersString);
 
 									//여기에 이제
 									//1. 받은 데이터에서 버스정류장 코드만 따서 : 했음
@@ -249,7 +263,7 @@ app.get('/', function (req, res) {
 
 
 app.get('/', function(req, res){
-  res.render("index", { vigilX : vigilX, vigilY : vigilY, vigilI : vigilI })
+  res.render("index", { vigilX : vigilX, vigilY : vigilY, vigilI : vigilI, vigilBus : vigilBusNumbersString})
 });//루트디렉터리에 접근하면 index.ejs라는 파일을 찾아 뒤의 파라미터를 찾아 html로 렌더링해서 반환함 (동적) : 기본적으로 views 폴더 안의 파일을 찾음
 
 app.listen(port, function () {
