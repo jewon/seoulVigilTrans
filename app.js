@@ -5,6 +5,9 @@ const parseString = require('xml2js').parseString;
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const express = require('express');
 
+//API_KEY 담아두는 파일 로드 (루트 디렉터리)
+var key = require('./appkey.js') //기본으로 node_modules폴더를 잡기 때문에 한 단계 상위 디렉토리로 가야 루트임
+
 var xhr = new XMLHttpRequest(); // xhr을 xmlhttprequest모듈 사용하는거라고 정의를 해줘야함
 var xhr2 = new XMLHttpRequest();
 var xhr3 = new XMLHttpRequest();
@@ -50,7 +53,7 @@ var vigilBusNumbersString = "";
 //돌발정보 받아오기 : 그냥 버스정류장 검색할때 쓴 코드에서 url만 바꿔서 해봄
 //서울시열린데이터광장 돌발정보 API : http://data.seoul.go.kr/dataList/datasetView.do?infId=OA-13315&srvType=A&serviceKind=1&currentPageNo=1
 var accUrl = "http://openapi.seoul.go.kr:8088"
-accUrl += "/" + "6f5548484b6a657734364372496f46" //data.seoul.go.kr 앱키
+accUrl += "/" + key.seoulD //data.seoul.go.kr 앱키
 accUrl += "/xml/AccInfo/1/100" //AccInfo는 API이름, 1부터 100번째 돌발정보까지 가져옴, API가 json미지원(xml만 가능)
 
 xhr2.open("GET", accUrl, true);
@@ -131,7 +134,7 @@ xhr2.onreadystatechange = function() {
 		kakaoUrl += "&input_coord=TM&output_coord=WGS84"//TM입력 WGS84출력
 
 		xhr3.open("GET", kakaoUrl);
-		xhr3.setRequestHeader('Authorization', "KakaoAK 73fd9facc7ef24e2aaad8f389c2b0f4d");
+		xhr3.setRequestHeader('Authorization', key.kakao);
 		xhr3.withCredentials = true;
 		xhr3.send();
 		xhr3.onreadystatechange = function() {
@@ -154,8 +157,8 @@ xhr2.onreadystatechange = function() {
 				urlStr += "&x=" + vigilX;
 				urlStr += "&y=" + vigilY;
 				urlStr += "&radius=" + 200; //집회위치 반경 몇m나 조회? (200으로 셋팅)
-				urlStr += "&stationClass=1" //1번이 버스정류장, 2번이 지하철역...
-				urlStr += "&apiKey=" + "GnSmCmPIkjKL9/FV99w4kZkJMcq1Jkc01VwirnkkSnY"
+				urlStr += "&stationClass=1"; //1번이 버스정류장, 2번이 지하철역...
+				urlStr += "&apiKey=" + key.odsay;
 				//odsay 앱키 (IP별로 1개씩 따로 발급되더라ㅠ : 그대로 하시면 API 조회할 때 오류날 듯, 따로발급하셔야...)
 
 				//아래는 https://lab.odsay.com/guide/guide?platform=web 오디세이 개발가이드 샘플코드
@@ -183,7 +186,7 @@ xhr2.onreadystatechange = function() {
 							//위의 URL에 아래 요소들 붙여서 API 조회할 URL 만든다.
 							busUrl += "?lang=0";
 							busUrl += "&stationID=" + nearstopcode;
-							busUrl += "&apiKey=" + "GnSmCmPIkjKL9/FV99w4kZkJMcq1Jkc01VwirnkkSnY"
+							busUrl += "&apiKey=" + key.odsay;
 
 							xhr4.open("GET", busUrl, true);
 							xhr4.send();
