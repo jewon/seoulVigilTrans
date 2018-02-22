@@ -50,6 +50,9 @@ var vigilY_tm;
 //집회에 영향받는 버스들 목록 넘겨줄 스트링
 var vigilBusNumbersString = "";
 
+//집회지 주변 버스정류장 저장할 JSON
+var nearstopGeoJSON = { "type" : "FeatureCollection", "features" : [] };
+
 //돌발정보 받아오기 : 그냥 버스정류장 검색할때 쓴 코드에서 url만 바꿔서 해봄
 //서울시열린데이터광장 돌발정보 API : http://data.seoul.go.kr/dataList/datasetView.do?infId=OA-13315&srvType=A&serviceKind=1&currentPageNo=1
 var accUrl = "http://openapi.seoul.go.kr:8088"
@@ -177,6 +180,16 @@ xhr2.onreadystatechange = function() {
 						console.log('nearbusstops : ' + nearstop.result.count);
 						if (nearstop.result.count > 0) { //주변에 버정이 있는경우에만 계속 진행
 
+							//버스정류장 정보들을 geoJSON 표준으로 바꿔주는 코드
+							for (var i = 0; i < nearstop.result.count; i++) { //버스정류장 갯수만큼 반복해서 geoJSON Feature에 Push해서 배열 추가
+								var tempF = { "type" : "Feature" , "properties" : { "bus" : [] , "name" : "" } , "geometry" : { "type" : "Point", "coordinates" : [] }, "id" : "" }
+								tempF.id = nearstop.result.station[i].stationID;
+								tempF.properties.name = nearstop.result.station[i].stationName;
+								tempF.geometry.coordinates.push(nearstop.result.station[i].x);
+								tempF.geometry.coordinates.push(nearstop.result.station[i].y);
+								nearstopGeoJSON.features.push(tempF);
+							}
+
 							//정류장 코드만 따본다 우선 가장 첫 번째 정류장만 해보자
 							var nearstopcode = nearstop.result.station[0].stationID;
 
@@ -249,6 +262,20 @@ xhr2.onreadystatechange = function() {
 			성공시: 검색한 버스정류장코드로 지나가는 버스 조회(오디세이)
 	}
 }
+
+이걸 한번에 하는 게 아니라 좀 더 인터액티브(?)한 방법을 생각하려고 보니...
+일단 페이지 접근하면 돌발정보조회(서울시) > 좌표변환(카카오) > 해당 지점 반경 ~m 내의 버스정류장 검색(오디세이)
+이렇게 다양한 돌발정보들의 위치와 주변 반경 ~m내의 버스정류장의 위치를 구글맵의 pin으로 띄워준 다음에
+사용자가 버스정류장을 클릭하면 그곳을 지나는 버스 목록을 오디세이에서 조회하는 방법이 나은 것 같다.
+
+get('/', fucntion(req, res) {
+	돌발정보조회(서울시){
+		성공시: 받은좌표 변환(카카오){
+			성공시: 변환된 좌표로 주변버스정류장 검색(오디세이)
+		}
+	}
+}
+
 */
 
 //xhr이 뭐 어찌 돌아가는지는 잘 모르겠지만 돌리면 아무튼 TEST폴더에 올려놓은 사진처럼 잘 됨...ㅋㅋ
@@ -266,8 +293,16 @@ app.get('/', function (req, res) {
 
 
 app.get('/', function(req, res){
-  res.render("index", { vigilX : vigilX, vigilY : vigilY, vigilI : vigilI, vigilBus : vigilBusNumbersString})
+  res.render("index", { vigilX : vigilX, vigilY : vigilY, vigilI : vigilI, vigilBus : vigilBusNumbersString, nearstop : JSON.stringify(nearstopGeoJSON)})
 });//루트디렉터리에 접근하면 index.ejs라는 파일을 찾아 뒤의 파라미터를 찾아 html로 렌더링해서 반환함 (동적) : 기본적으로 views 폴더 안의 파일을 찾음
+
+
+app.get('/bus-icon', function(req, res){
+	fs.readFile('bus.gif', function(err, data){
+		res.writeHead(200, { 'Content-Type' : 'text/html' })
+		res.end(data);
+	});
+});
 
 app.listen(port, function () {
   console.log('listening on port' + port);
