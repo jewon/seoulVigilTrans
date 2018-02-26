@@ -43,6 +43,9 @@ http.createServer(function(req, res){
 var vigilX = 126.976942;
 var vigilY = 37.571005; //초깃값 : 세종대로사거리
 
+//집회 위치에서 버스 정류장 검색할 반경 설정
+var radius = 500;
+
 //집회 위치 받아서 저장할 x, y 좌표(GRS80TM) : 서울시에서 받아서 바로 저장, 이후 변환필요
 var vigilX_tm;
 var vigilY_tm;
@@ -134,7 +137,7 @@ xhr2.onreadystatechange = function() {
 		kakaoUrl = "https://dapi.kakao.com/v2/local/geo/transcoord.json?";
 		kakaoUrl += "x=" + vigilX_tm;
 		kakaoUrl += "&y=" + vigilY_tm;
-		kakaoUrl += "&input_coord=TM&output_coord=WGS84"//TM입력 WGS84출력
+		kakaoUrl += "&input_coord=WTM&output_coord=WGS84"//TM입력 WGS84출력
 
 		xhr3.open("GET", kakaoUrl);
 		xhr3.setRequestHeader('Authorization', key.kakao);
@@ -151,7 +154,7 @@ xhr2.onreadystatechange = function() {
 				//console.log(vigilXY);
 				vigilX = vigilXY.documents[0].x;
 				vigilY = vigilXY.documents[0].y;
-				console.log( "CSR Change OK (FROM KAKAO API) : ", vigilX, ", ", vigilY);
+				console.log( "CSR Change OK (FROM KAKAO API) : ", vigilX_tm, ", ", vigilY_tm, " -> ", vigilX, ", ", vigilY);
 
 				//집회위치 반경 내 버스정류장 검색
 				//https://lab.odsay.com/guide/reference#pointSearch 참조
@@ -159,7 +162,7 @@ xhr2.onreadystatechange = function() {
 				//위의 url에 아래 요소들 붙여서 API 조회할 url을 만든다
 				urlStr += "&x=" + vigilX;
 				urlStr += "&y=" + vigilY;
-				urlStr += "&radius=" + 200; //집회위치 반경 몇m나 조회? (200으로 셋팅)
+				urlStr += "&radius=" + radius; //집회위치 반경 몇m나 조회? (200으로 셋팅)
 				urlStr += "&stationClass=1"; //1번이 버스정류장, 2번이 지하철역...
 				urlStr += "&apiKey=" + key.odsay;
 				//odsay 앱키 (IP별로 1개씩 따로 발급되더라ㅠ : 그대로 하시면 API 조회할 때 오류날 듯, 따로발급하셔야...)
@@ -293,7 +296,7 @@ app.get('/', function (req, res) {
 
 
 app.get('/', function(req, res){
-  res.render("index", { vigilX : vigilX, vigilY : vigilY, vigilI : vigilI, vigilBus : vigilBusNumbersString, nearstop : JSON.stringify(nearstopGeoJSON)})
+  res.render("index", { gappkey : key.google, vigilX : vigilX, vigilY : vigilY, vigilI : vigilI, vigilBus : vigilBusNumbersString, radius : radius, nearstop : JSON.stringify(nearstopGeoJSON)})
 });//루트디렉터리에 접근하면 index.ejs라는 파일을 찾아 뒤의 파라미터를 찾아 html로 렌더링해서 반환함 (동적) : 기본적으로 views 폴더 안의 파일을 찾음
 
 

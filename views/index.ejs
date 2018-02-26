@@ -15,8 +15,8 @@
     <h3>google map</h3>
     <div id="map"></div>
     <br></br><%= vigilI %>
-    <br></br>회피 대상 노선 : <%= vigilBus %>
-    <br></br><%- nearstop %>
+    <br></br>회피 대상 노선(가장 먼저 조회된 1개 정류장만 TEST) : <%= vigilBus %>
+    <br></br>집회 반경 설정값 : <%= radius %>m
 
     <script type='text/javascript' src='config.js'></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIrLAR1jtHIIiXCn5ZE060HZOHzK3gTnw&callback=initMap" async defer></script>
@@ -24,6 +24,8 @@
 
         //from 구글맵 api 샘플코드 : https://developers.google.com/maps/documentation/javascript/adding-a-google-map#3_api
         //위의 src에 앱키 포함되어 있고, IP제한설정에 추가해 두었으니 그대로 쓰셔도 됩니다
+        var nearstopString = "";
+
         function initMap() {
           var center = {lat: <%= vigilY %>, lng: <%= vigilX %>}; //백석고WGS84 좌표값
           var map = new google.maps.Map(document.getElementById('map'), {
@@ -38,6 +40,17 @@
             draggable: true,
             animation: google.maps.Animation.DROP,
             position: {lat: <%= vigilY %>, lng: <%= vigilX %>}
+          });
+
+          var cityCircle = new google.maps.Circle({
+            strokeColor: '#FF0000',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: '#FF0000',
+            fillOpacity: 0.10,
+            map: map,
+            center: center,
+            radius: <%- radius %>
           });
 
           //버스정류장들 marker생성 (nearstop은 geoJSON 표준에 따름)
